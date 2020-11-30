@@ -161,7 +161,7 @@ push_and_run(char * target_file)
         struct processing_frame * ptr = stack_top;
         while (ptr) {
             if (!strcmp(target_file, ptr->filename)) {
-                fprintf(stderr, "nested inclusion founded for file:%s\n", target_file);
+                fprintf(stderr, "nested inclusion found for file:%s\n", target_file);
                 {
                     struct processing_frame * _ptr = stack_top;
                     printf("inclusion path stack:\n");
