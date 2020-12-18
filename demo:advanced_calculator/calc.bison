@@ -38,9 +38,18 @@
 
 %union {
     struct ast_node * astnode;
+    struct param_node * paramnode;
+    struct schema_node *schemanode;
+    struct statement_node * statementnode;
 }
 
 %type <astnode> expression
+%type <paramnode> param_list
+%type <schemanode> schema_list
+%type <statementnode> statement 
+%type <statementnode> statement_list
+%type <statementnode> conditional_statement
+%type <statementnode> loop_statement
 
 %start top_statement
 
@@ -53,33 +62,75 @@ top_statement: /*could be nothing*/
     | top_statement statement
     ;
 
-schema_list: /* could be null parameter list*/
-    | VOID
-    | IDENTIFER
-    | schema_list COMMA IDENTIFER
+schema_list: /* could be null parameter list*/ {
+        $$ = new_schema_node(SCHEMA_NODE_TYPE_VOID, NULL, NULL);
+      }
+    | VOID {
+        $$ = new_schema_node(SCHEMA_NODE_TYPE_VOID, NULL, NULL);
+      }
+    | IDENTIFER {
+        $$ = new_schema_node(SCHEMA_NODE_TYPE_ID, $1, NULL);
+      }
+    | schema_list COMMA IDENTIFER {
+        $$ = new_schema_node(SCHEMA_NODE_TYPE_ID, $3, $1);
+      }
     ;
 
-statement_list: /*also null statement list is allowed*/
-    | statement_list statement
+statement_list: /*also null statement list is allowed*/ {
+        $$ = new_statement_node(STATEMENT_TYPE_VOID, NULL);
+      }
+    | statement_list statement {
+        // note the statement is always pointing the rear. 
+        concat_statement_nodes($1, $2);
+        $$ = $2;
+      }
     ;
 
 
-statement: SEMICOLON
-    |DECLARE IDENTIFER SEMICOLON
-    |DECLARE IDENTIFER ASSIGN expression SEMICOLON
-    |IDENTIFER ASSIGN expression SEMICOLON
-    |RETURN expression SEMICOLON
-    |conditional_expression
-    |loop_expression
+statement: SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_VOID, NULL);
+      }
+    | DECLARE IDENTIFER SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_DECLARE, NULL, $2, NULL);
+      }
+    | DECLARE IDENTIFER ASSIGN expression SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_DECLARE, NULL, $2, $4);
+      }
+    | IDENTIFER ASSIGN expression SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_ASSIGN, NULL, $1, $3);
+      }
+    | RETURN SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_RETURN, NULL, NULL);
+      }
+    | RETURN expression SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_RETURN, NULL, $2);
+      }
+    | conditional_statement {
+        $$ = $1;
+      }
+    | loop_statement {
+        $$ = $1;
+      }
+    | expression SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_RAW_EXPRESSION, NULL, $1);
+      }
     ;
 
-conditional_expression:
-      IF LPARENTHESES expression RPARENTHESES LBRACKET statement_list RBRACKET
-    | IF LPARENTHESES expression RPARENTHESES LBRACKET statement_list RBRACKET ELSE LBRACKET statement_list RBRACKET
+conditional_statement:
+      IF LPARENTHESES expression RPARENTHESES LBRACKET statement_list RBRACKET {
+        $$ = new_statement_node(STATEMENT_TYPE_CONDITIONAL_EXPRESSION, NULL, $3, statement_list_head($6), NULL);
+      }
+    | IF LPARENTHESES expression RPARENTHESES LBRACKET statement_list RBRACKET ELSE LBRACKET statement_list RBRACKET {
+        $$ = new_statement_node(STATEMENT_TYPE_CONDITIONAL_EXPRESSION, NULL, $3,
+                                statement_list_head($6),
+                                statement_list_head($10));
+      }
     ;
 
-loop_expression:
-    WHILE LPARENTHESES expression RPARENTHESES LBRACKET statement_list RBRACKET
+loop_statement:
+      WHILE LPARENTHESES expression RPARENTHESES LBRACKET statement_list RBRACKET {
+          $$ = new_statement_node(STATEMENT_TYPE_LOOP_EXPRESSION, NULL, $3, statement_list_head($6));
+      }
     ;
 
 expression:
@@ -123,17 +174,21 @@ expression:
         $$ = new_ast_node(AST_NODE_TYPE_ATOM_OPS_OR, NULL, $1, $3);
       }
     | IDENTIFER LPARENTHESES param_list RPARENTHESES {
-        $$ = NULL;
+        $$ = new_ast_node(AST_NODE_TYPE_FUNCTION, $1, NULL, NULL, param_list_head($3));
       }
     ;
 
-param_list:
-    | IDENTIFER
-    | NUMBER
-    | param_list COMMA IDENTIFER
-    | param_list COMMA NUMBER
+ ;
+param_list: {
+        $$ = new_param_node(PARAM_NODE_TYPE_VOID, NULL, NULL);
+      }
+    | expression {
+        $$ = new_param_node(PARAM_NODE_TYPE_AST, $1, NULL);
+      }
+    | param_list COMMA expression {
+        $$ = new_param_node(PARAM_NODE_TYPE_AST, $3, $1);
+      }
     ;
- 
 %%
 
 int
