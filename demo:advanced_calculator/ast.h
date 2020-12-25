@@ -38,6 +38,9 @@ struct ast_node {
 
     struct ast_node * lchild;
     struct ast_node * rchild;
+
+    // Debug Info
+    int lineno;
 };
 
 
@@ -61,6 +64,8 @@ struct param_node {
     struct ast_node * ast;
     struct param_node * next_param;
     struct param_node * prev_param;
+
+    int lineno;
 };
 
 struct param_node *
@@ -79,7 +84,9 @@ enum statement_node_type {
     STATEMENT_TYPE_RETURN,
     STATEMENT_TYPE_RAW_EXPRESSION,
     STATEMENT_TYPE_CONDITIONAL_EXPRESSION,
-    STATEMENT_TYPE_LOOP_EXPRESSION
+    STATEMENT_TYPE_LOOP_EXPRESSION,
+    STATEMENT_TYPE_CONTINUE,
+    STATEMENT_TYPE_BREAK
 };
 
 struct statement_node {
@@ -97,6 +104,7 @@ struct statement_node {
         };
         // STATEMENT_TYPE_RETURN
         struct ast_node * return_value;
+        // STATEMENT_TYPE_RAW_EXPRESSION
         struct ast_node * raw_expression;
 
         // STATEMENT_TYPE_CONDITIONAL_EXPRESSION
@@ -113,6 +121,8 @@ struct statement_node {
     };
     struct statement_node * next_statement;
     struct statement_node * prev_statement;
+
+    int lineno;
 };
 
 struct statement_node *
@@ -139,11 +149,43 @@ struct schema_node {
     char * variable_name;
     struct schema_node * prev_node;
     struct schema_node * next_node;
+
+    int lineno;
 };
 
 struct schema_node *
 new_schema_node(enum schema_node_type type,
                 char * variable_name,
                 struct schema_node * prev);
+
+
+struct schema_node *
+schema_list_head(struct schema_node * node);
+
+
+//////////////////////////////////////////////
+//Global Data Structure
+/////////////////////////////////////////////
+
+
+struct function_declaration {
+    char * function_name;
+    struct schema_node * parameter_schema;
+    struct statement_node * body;
+    struct function_declaration *next_function;
+
+    int lineno;
+};
+
+struct function_declaration *
+new_function_declaration(char * function_name,
+                         struct schema_node * params_list,
+                         struct statement_node * body);
+
+void
+register_function(struct function_declaration * function);
+
+void
+register_global_statement(struct statement_node * statement);
 
 #endif

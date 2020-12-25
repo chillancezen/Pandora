@@ -11,6 +11,7 @@
 #define PARAM_LOG(...) LOG("line:%d [node:%p prev:%p]", yylineno, node, prev); LOG(__VA_ARGS__)
 #define STATEMENT_LOG(...) PARAM_LOG(__VA_ARGS__)
 #define SCHEMA_LOG(...) PARAM_LOG(__VA_ARGS__)
+
 extern int yylineno;
 
 
@@ -62,7 +63,7 @@ new_ast_node(enum ast_node_type type,
     }
     node->lchild = lchild;
     node->rchild = rchild;
-    
+    node->lineno = yylineno; 
     va_end(valist); 
     return node;
 }
@@ -78,6 +79,7 @@ new_param_node(enum param_node_type type,
     node->node_type = type;
     node->ast = ast;
     node->prev_param = prev;
+    node->lineno = yylineno;
     if (prev) {
         prev->next_param = node;
     }
@@ -117,6 +119,7 @@ new_statement_node(enum statement_node_type type,
     memset(node, 0x0, sizeof(struct statement_node));
     node->node_type = type;
     node->prev_statement = prev;
+    node->lineno = yylineno;
     if (prev) {
         prev->next_statement = node;
     }
@@ -163,6 +166,12 @@ new_statement_node(enum statement_node_type type,
                           node->loop_expression,
                           node->body_statements);
             break;
+        case STATEMENT_TYPE_CONTINUE:
+            STATEMENT_LOG("STATEMENT_TYPE_CONTINUE\n");
+            break;
+        case STATEMENT_TYPE_BREAK:
+            STATEMENT_LOG("STATEMENT_TYPE_BREAK\n");
+            break;
         default:
             assert(0);
             break;
@@ -205,6 +214,7 @@ new_schema_node(enum schema_node_type type,
     node->node_type = type;
     node->variable_name = variable_name;
     node->prev_node = prev;
+    node->lineno = yylineno;
     if (prev) {
         prev->next_node = node;
     }
@@ -221,4 +231,31 @@ new_schema_node(enum schema_node_type type,
             break;
     }
     return node;
+}
+
+struct schema_node *
+schema_list_head(struct schema_node * node)
+{
+    struct schema_node * ptr = node;
+    for(; ptr->prev_node; ptr = ptr->prev_node);
+    return ptr;
+}
+
+struct function_declaration *
+new_function_declaration(char * function_name,
+                         struct schema_node * params_list,
+                         struct statement_node * body)
+{
+    struct function_declaration * declaration = (struct function_declaration *)malloc(sizeof(struct function_declaration));
+    assert(declaration);
+    memset(declaration, 0x0, sizeof(struct function_declaration));
+    declaration->function_name = function_name;
+    declaration->parameter_schema = params_list;
+    declaration->body = body;
+    declaration->lineno = yylineno;
+    LOG("defined function:%s param:%p body:%p\n",
+        declaration->function_name,
+        declaration->parameter_schema,
+        declaration->body);
+    return declaration;
 }

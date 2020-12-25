@@ -1,7 +1,8 @@
 %{
     #include <stdio.h>
     #include <ast.h>
-
+    #include <assert.h>
+    #include <stdlib.h>
     extern int yylex(void);
     extern int yyerror(const char *);
 %}
@@ -12,15 +13,16 @@
 %token <sval> IDENTIFER
 %token <ival> NUMBER
 %token ADD SUB MUL DIV
-%token EOL
 %token LPARENTHESES RPARENTHESES
 %token LBRACKET RBRACKET
 %token ASSIGN
 %token COMMA
 %token VOID
 %token RETURN
-%token IF ELSE WHILE
+%token IF ELSE WHILE CONTINUE BREAK
 %token SEMICOLON
+%token END_OF_FILE
+
 
 %left OR
 %left AND
@@ -57,9 +59,18 @@
 
 top_statement: /*could be nothing*/
     | top_statement DEFINE IDENTIFER LPARENTHESES schema_list RPARENTHESES LBRACKET statement_list RBRACKET {
-        printf("define function: %s\n", $3);
+        struct function_declaration * new_funtion = new_function_declaration($3,
+                                                                             schema_list_head($5),
+                                                                             statement_list_head($8));
+        register_function(new_funtion);
       };
-    | top_statement statement
+    | top_statement statement {
+        // catch a global statement out of any functions.
+        register_global_statement($2);
+      }
+    | error {
+        exit(1);
+    }
     ;
 
 schema_list: /* could be null parameter list*/ {
@@ -82,6 +93,9 @@ statement_list: /*also null statement list is allowed*/ {
     | statement_list statement {
         // note the statement is always pointing the rear. 
         concat_statement_nodes($1, $2);
+        $$ = $2;
+      }
+    | LBRACKET statement_list RBRACKET {
         $$ = $2;
       }
     ;
@@ -113,6 +127,12 @@ statement: SEMICOLON {
       }
     | expression SEMICOLON {
         $$ = new_statement_node(STATEMENT_TYPE_RAW_EXPRESSION, NULL, $1);
+      }
+    | CONTINUE SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_CONTINUE, NULL, NULL);
+      }
+    | BREAK SEMICOLON {
+        $$ = new_statement_node(STATEMENT_TYPE_BREAK, NULL, NULL);
       }
     ;
 
@@ -191,10 +211,21 @@ param_list: {
     ;
 %%
 
+extern int yyrestart(FILE *);
 int
 main(int argc, char **argv)
 {
-
-    yyparse();
+    if (argc > 1) {
+        int idx = 0;
+        for (idx = 1; idx < argc; idx++) {
+            FILE * fp = fopen(argv[idx], "r");
+            assert(fp);
+            yyrestart(fp);
+            yyparse();
+        }
+    } else {
+        // default input is from stdin.
+        yyparse();
+    }
     return 0;
 }

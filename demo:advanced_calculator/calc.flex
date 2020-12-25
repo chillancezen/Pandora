@@ -35,7 +35,8 @@
 "if" { return IF; }
 "else" { return ELSE; }
 "while" { return WHILE; }
-
+"continue" { return CONTINUE; }
+"break" { return BREAK; }
 
 [_a-zA-Z][_a-zA-Z0-9]* {
     yylval.sval = strdup(yytext);
@@ -69,7 +70,7 @@
 }
 
 <<EOF>> {
-    return EOL;
+    yyterminate();
 }
 
 
