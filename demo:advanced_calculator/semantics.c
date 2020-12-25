@@ -195,14 +195,14 @@ validate_variable_declaration(struct statement_node * statement,
                               char * variable_name,
                               int visibility_level)
 {
-    // Any declaration statements in a loop/conditional expression in non-function(global) scope is considered as local.
+    // Any declaration statements in a loop/conditional expression and in non-function(global) scope are considered as local.
     ASSERT(!is_symbol_present_at_visibility_level(&symbols,
                                                   variable_name,
                                                   visibility_level ? SYMBOL_TYPE_LOCAL_VARIABLE | SYMBOL_TYPE_PARAMTER : SYMBOL_TYPE_GLOBAL_VARIABLE,
                                                   visibility_level),
            "semantic error: line %d, %s variable name:%s has been defined\n",
            statement->lineno,
-           context_indication.function_index ? "local" : "global",
+           visibility_level ? "local" : "global",
            variable_name);
     append_symbol(&symbols, new_symbol(visibility_level ? SYMBOL_TYPE_LOCAL_VARIABLE : SYMBOL_TYPE_GLOBAL_VARIABLE, variable_name, statement, visibility_level));
 }
